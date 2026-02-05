@@ -6,13 +6,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hygiène - La Oncé</title>
     <script>
-        // Ce script définit l'objet process avant que les modules ne se chargent
-        // pour éviter le crash "process is not defined" sur Vercel
-        window.process = { 
-            env: { 
-                NODE_ENV: 'production'
-            } 
-        };
+        // Polyfill robuste pour l'objet process
+        // Cela permet à process.env.API_KEY de ne pas générer de ReferenceError
+        window.process = window.process || {};
+        window.process.env = window.process.env || {};
+        if (!window.process.env.NODE_ENV) {
+            window.process.env.NODE_ENV = 'production';
+        }
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -27,6 +27,12 @@
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .animate-fadeIn { animation: fadeIn 0.4s ease-out; }
+        
+        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-slideUp { animation: slideUp 0.3s ease-out; }
     </style>
 <script type="importmap">
 {
