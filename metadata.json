@@ -1,6 +1,6 @@
 {
-  "name": "HACCP Pro - La Oncé",
-  "description": "Gestion HACCP Cloud avec traçabilité photo et inventaire partagé.",
+  "name": "Hygiène - La Oncé",
+  "description": "Système de gestion HACCP Cloud professionnel pour La Oncé.",
   "requestFramePermissions": [
     "camera",
     "microphone"
