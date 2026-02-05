@@ -1,0 +1,8 @@
+{
+  "name": "HACCP Pro - La Oncé",
+  "description": "Gestion HACCP Cloud avec traçabilité photo et inventaire partagé.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
