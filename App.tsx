@@ -9,41 +9,23 @@ import Recipes from './components/Recipes';
 import Traceability from './components/Traceability';
 import Standards from './components/Standards';
 import Inventory from './components/Inventory';
-import Login from './components/Login';
 import { db } from './services/databaseService';
 import { 
   LayoutDashboard, ClipboardList, Sparkles, History, Menu, X, 
   FileDown, BookOpen, PackageSearch, ShieldCheck, Boxes, 
-  LogOut, CloudCheck, RefreshCw, AlertTriangle, Key
+  LogOut, CloudCheck, RefreshCw, AlertTriangle, CloudOff
 } from 'lucide-react';
 import { exportHistoryToPDF } from './services/exportService';
 
-const AUTH_KEY = 'haccp_auth';
-
 const App: React.FC = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [logs, setLogs] = useState<DailyLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const [hasConfigError, setHasConfigError] = useState(false);
 
   useEffect(() => {
-    // Vérification de la configuration Supabase
-    if (!db.isReady()) {
-      setHasConfigError(true);
-      setIsLoading(false);
-      return;
-    }
-
-    const authStatus = localStorage.getItem(AUTH_KEY);
-    if (authStatus === 'true') {
-      setIsAuthenticated(true);
-      loadInitialData();
-    } else {
-      setIsLoading(false);
-    }
+    loadInitialData();
   }, []);
 
   const loadInitialData = async () => {
@@ -70,15 +52,10 @@ const App: React.FC = () => {
       }
       setLogs(currentLogs);
     } catch (e) {
-      console.error("Failed to load cloud data", e);
+      console.error("Failed to load initial data", e);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem(AUTH_KEY);
-    setIsAuthenticated(false);
   };
 
   const updateTodayLog = async (id: string, updates: Partial<CheckItem>) => {
@@ -109,55 +86,14 @@ const App: React.FC = () => {
     };
   };
 
-  // Écran d'erreur de configuration
-  if (hasConfigError) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-        <div className="max-w-md w-full bg-white rounded-3xl shadow-xl p-8 text-center space-y-6 border border-amber-100">
-          <div className="w-20 h-20 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto">
-            <AlertTriangle size={40} />
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-2xl font-bold text-gray-900">Configuration Requise</h2>
-            <p className="text-gray-500 text-sm">
-              L'application ne peut pas se connecter à votre base de données Supabase. 
-            </p>
-          </div>
-          <div className="bg-gray-50 p-4 rounded-xl text-left space-y-3">
-            <p className="text-xs font-bold text-gray-400 uppercase">Action requise :</p>
-            <div className="flex items-start gap-3 text-sm text-gray-700">
-              <div className="w-5 h-5 bg-indigo-100 text-indigo-600 rounded flex items-center justify-center text-[10px] font-bold mt-0.5 shrink-0">1</div>
-              <p>Allez dans les <b>Paramètres (Secrets)</b> de votre éditeur ou de Vercel.</p>
-            </div>
-            <div className="flex items-start gap-3 text-sm text-gray-700">
-              <div className="w-5 h-5 bg-indigo-100 text-indigo-600 rounded flex items-center justify-center text-[10px] font-bold mt-0.5 shrink-0">2</div>
-              <p>Ajoutez <b>SUPABASE_URL</b> et <b>SUPABASE_ANON_KEY</b>.</p>
-            </div>
-          </div>
-          <button 
-            onClick={() => window.location.reload()}
-            className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-indigo-100 flex items-center justify-center gap-2"
-          >
-            <RefreshCw size={18} />
-            Actualiser l'application
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center p-8 text-center space-y-4">
         <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
         <h2 className="text-xl font-bold text-gray-900">Synchronisation HACCP...</h2>
-        <p className="text-gray-500">Récupération sécurisée de vos données.</p>
+        <p className="text-gray-500">Préparation de votre espace de travail.</p>
       </div>
     );
-  }
-
-  if (!isAuthenticated) {
-    return <Login onLogin={(success) => { setIsAuthenticated(success); if(success) loadInitialData(); }} />;
   }
 
   const renderContent = () => {
@@ -193,7 +129,7 @@ const App: React.FC = () => {
               </button>
             </header>
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden divide-y divide-gray-100">
-              {logs.map(log => (
+              {logs.length > 0 ? logs.map(log => (
                 <div key={log.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
                   <div>
                     <p className="font-bold text-gray-800">{new Date(log.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
@@ -203,7 +139,9 @@ const App: React.FC = () => {
                     {log.items.every(i => i.completed) ? 'COMPLET' : 'INCOMPLET'}
                   </div>
                 </div>
-              ))}
+              )) : (
+                <div className="p-8 text-center text-gray-400">Aucun historique disponible</div>
+              )}
             </div>
           </div>
         );
@@ -214,13 +152,12 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#f9fafb] flex flex-col md:flex-row">
-      {/* Header Mobile */}
       <header className="md:hidden bg-white border-b border-gray-200 p-4 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
-            <ShieldCheckIcon size={20} />
+            <ShieldCheck size={20} />
           </div>
-          <h1 className="font-bold text-gray-900">Hygiène La Oncé</h1>
+          <h1 className="font-bold text-gray-900">La Oncé HACCP</h1>
         </div>
         <button onClick={() => setSidebarOpen(!isSidebarOpen)} className="p-2 text-gray-600">
           {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
@@ -233,7 +170,7 @@ const App: React.FC = () => {
       `}>
         <div className="p-6 hidden md:flex items-center gap-3">
           <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-100">
-            <ShieldCheckIcon size={24} />
+            <ShieldCheck size={24} />
           </div>
           <h1 className="text-xl font-bold text-gray-900">La Oncé</h1>
         </div>
@@ -250,14 +187,19 @@ const App: React.FC = () => {
         </nav>
 
         <div className="p-4 border-t border-gray-100 space-y-2">
-          <div className="bg-indigo-50 rounded-xl p-3 flex items-center justify-between">
-            <p className="text-xs font-semibold text-indigo-900 truncate">{RESTAURANT_NAME}</p>
-            {isSyncing ? <RefreshCw size={14} className="text-indigo-400 animate-spin" /> : <CloudCheck size={14} className="text-emerald-500" />}
+          <div className={`rounded-xl p-3 flex items-center justify-between ${db.isCloudEnabled() ? 'bg-indigo-50 text-indigo-900' : 'bg-amber-50 text-amber-900'}`}>
+            <p className="text-xs font-semibold truncate">{RESTAURANT_NAME}</p>
+            {isSyncing ? (
+              <RefreshCw size={14} className="animate-spin" />
+            ) : db.isCloudEnabled() ? (
+              <CloudCheck size={14} className="text-emerald-500" />
+            ) : (
+              <CloudOff size={14} className="text-amber-500" title="Mode Local" />
+            )}
           </div>
-          <button onClick={handleLogout} className="w-full flex items-center space-x-3 px-4 py-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors text-sm font-medium">
-            <LogOut size={18} />
-            <span>Déconnexion</span>
-          </button>
+          <p className="text-[10px] text-center text-gray-400 uppercase tracking-widest px-4">
+            v2.6 Stable
+          </p>
         </div>
       </aside>
 
@@ -283,13 +225,6 @@ const NavItem: React.FC<{ active: boolean; onClick: () => void; icon: React.Reac
     {icon}
     <span>{label}</span>
   </button>
-);
-
-const ShieldCheckIcon = ({ size }: { size: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/>
-    <path d="m9 12 2 2 4-4"/>
-  </svg>
 );
 
 export default App;

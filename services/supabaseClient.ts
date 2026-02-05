@@ -1,15 +1,20 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || '';
+// Fonction sécurisée pour récupérer les variables d'environnement
+const getEnv = (key: string): string => {
+  try {
+    // Tentative d'accès via process.env ou window.process.env
+    // @ts-ignore
+    return process.env[key] || window.process?.env?.[key] || '';
+  } catch {
+    return '';
+  }
+};
 
-// On n'initialise le client que si les clés sont présentes
-// Sinon on exporte null, ce qui sera géré par l'application
+const supabaseUrl = getEnv('SUPABASE_URL');
+const supabaseAnonKey = getEnv('SUPABASE_ANON_KEY');
+
 export const supabase = (supabaseUrl && supabaseAnonKey) 
   ? createClient(supabaseUrl, supabaseAnonKey) 
   : null;
-
-if (!supabase) {
-  console.warn("Supabase : Les variables d'environnement SUPABASE_URL ou SUPABASE_ANON_KEY sont manquantes.");
-}

@@ -1,12 +1,11 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import { DailyLog } from "../types";
 
-// Note: Always use process.env.API_KEY directly in initialization as per guidelines.
-// Assume it is pre-configured and accessible.
+// Use the pre-configured process.env.API_KEY for Gemini API.
 
 export const analyzeHaccpLogs = async (log: DailyLog) => {
-  // Initialize AI client right before use with direct process.env.API_KEY access
+  // Always initialize GoogleGenAI with a named parameter using process.env.API_KEY directly.
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const prompt = `
@@ -26,6 +25,7 @@ export const analyzeHaccpLogs = async (log: DailyLog) => {
         thinkingConfig: { thinkingBudget: 0 }
       }
     });
+    // Access response.text property directly (not as a method).
     return response.text || "Aucune analyse générée.";
   } catch (error) {
     console.error("Gemini Analysis Error:", error);
@@ -34,7 +34,7 @@ export const analyzeHaccpLogs = async (log: DailyLog) => {
 };
 
 export const getSafetyAdvice = async (query: string) => {
-  // Initialize AI client right before use with direct process.env.API_KEY access
+  // Always initialize GoogleGenAI with a named parameter using process.env.API_KEY directly.
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   try {
@@ -43,6 +43,7 @@ export const getSafetyAdvice = async (query: string) => {
       contents: `Question sur la sécurité alimentaire en restauration : ${query}. Réponds selon les normes d'hygiène françaises (HACCP).`,
     });
 
+    // Access response.text property directly (not as a method).
     return response.text || "Désolé, je ne peux pas répondre à cette question pour le moment.";
   } catch (error) {
     console.error("Gemini Advice Error:", error);
