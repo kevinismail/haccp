@@ -6,13 +6,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hygiène - La Oncé</title>
     <script>
-        // Polyfill robuste pour l'objet process
-        // Cela permet à process.env.API_KEY de ne pas générer de ReferenceError
-        window.process = window.process || {};
-        window.process.env = window.process.env || {};
-        if (!window.process.env.NODE_ENV) {
-            window.process.env.NODE_ENV = 'production';
-        }
+        // Polyfill global immédiat pour éviter ReferenceError: process is not defined
+        (function() {
+            var p = { 
+                env: { NODE_ENV: 'production' },
+                platform: 'browser',
+                nextTick: function(f) { setTimeout(f, 0); }
+            };
+            window.process = p;
+            if (typeof globalThis !== 'undefined') globalThis.process = p;
+        })();
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">

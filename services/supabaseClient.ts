@@ -1,12 +1,18 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Sur Vercel, les variables sont injectées dans process.env
-// Notre polyfill dans index.html assure que window.process.env existe toujours.
-const env = typeof process !== 'undefined' ? process.env : (window as any).process?.env || {};
+// Fonction sécurisée pour lire les variables d'environnement
+const getEnv = (key: string): string => {
+  try {
+    // @ts-ignore
+    return (typeof process !== 'undefined' && process.env?.[key]) || (window as any).process?.env?.[key] || '';
+  } catch {
+    return '';
+  }
+};
 
-const supabaseUrl = env.SUPABASE_URL || '';
-const supabaseAnonKey = env.SUPABASE_ANON_KEY || '';
+const supabaseUrl = getEnv('SUPABASE_URL');
+const supabaseAnonKey = getEnv('SUPABASE_ANON_KEY');
 
 export const supabase = (supabaseUrl && supabaseAnonKey) 
   ? createClient(supabaseUrl, supabaseAnonKey) 
