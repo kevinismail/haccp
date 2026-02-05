@@ -2,7 +2,7 @@
 import { supabase } from './supabaseClient';
 import { DailyLog, TraceabilityRecord, InventoryItem, StockMovement } from '../types';
 
-// Stockage Local de secours si Supabase est absent
+// Stockage Local de secours
 const localStore = {
   get: (key: string) => JSON.parse(localStorage.getItem(key) || '[]'),
   set: (key: string, val: any) => localStorage.setItem(key, JSON.stringify(val))
@@ -17,17 +17,21 @@ export const db = {
   async getDailyLogs(): Promise<DailyLog[]> {
     if (!supabase) return localStore.get('haccp_logs');
     
-    const { data, error } = await supabase
-      .from('haccp_logs')
-      .select('*')
-      .order('date', { ascending: false });
-    
-    if (error) return localStore.get('haccp_logs');
-    return data.map(row => ({ ...row.data, id: row.id, date: row.date }));
+    try {
+      const { data, error } = await supabase
+        .from('haccp_logs')
+        .select('*')
+        .order('date', { ascending: false });
+      
+      if (error) throw error;
+      return data.map(row => ({ ...row.data, id: row.id, date: row.date }));
+    } catch (error: any) {
+      console.warn("Mode local activé (Erreur Cloud Logs):", error.message);
+      return localStore.get('haccp_logs');
+    }
   },
 
   async upsertDailyLog(log: DailyLog) {
-    // Sauvegarde locale systématique (sécurité)
     const logs = await this.getDailyLogs();
     const index = logs.findIndex(l => l.date === log.date);
     if (index > -1) logs[index] = log;
@@ -35,14 +39,28 @@ export const db = {
     localStore.set('haccp_logs', logs);
 
     if (!supabase) return;
-    await supabase.from('haccp_logs').upsert({ id: log.id, date: log.date, data: log });
+    try {
+      const { error } = await supabase.from('haccp_logs').upsert({ 
+        id: log.id, 
+        date: log.date, 
+        data: log 
+      });
+      if (error) throw error;
+    } catch (e: any) {
+      console.error("Échec synchro Cloud Upsert:", e.message);
+    }
   },
 
   // --- TRAÇABILITÉ ---
   async getTraceability(): Promise<TraceabilityRecord[]> {
     if (!supabase) return localStore.get('haccp_traceability');
-    const { data, error } = await supabase.from('haccp_traceability').select('*').order('date', { ascending: false });
-    return error ? localStore.get('haccp_traceability') : data;
+    try {
+      const { data, error } = await supabase.from('haccp_traceability').select('*').order('date', { ascending: false });
+      if (error) throw error;
+      return data;
+    } catch (e: any) {
+      return localStore.get('haccp_traceability');
+    }
   },
 
   async addTraceabilityRecord(record: TraceabilityRecord) {
@@ -58,12 +76,11 @@ export const db = {
     localStore.set('haccp_traceability', records.filter((r: any) => r.id !== id));
 
     if (!supabase) return;
-    await supabase.from('haccp_traceability').delete().match({ id });
+    await supabase.from('haccp_traceability').delete().eq('id', id);
   },
 
   async uploadPhoto(file: File): Promise<string | null> {
     if (!supabase) {
-      // Simulation d'upload en local (Base64 pour l'aperçu si petite image)
       return new Promise((resolve) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve(reader.result as string);
@@ -73,7 +90,11 @@ export const db = {
     
     const fileName = `trace-${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
     const { data, error } = await supabase.storage.from('traceability-photos').upload(fileName, file);
-    if (error) return null;
+    
+    if (error) {
+      console.error("Erreur Upload Storage:", error.message);
+      return null;
+    }
     const { data: urlData } = supabase.storage.from('traceability-photos').getPublicUrl(data.path);
     return urlData.publicUrl;
   },
@@ -81,8 +102,13 @@ export const db = {
   // --- INVENTAIRE ---
   async getInventory(): Promise<InventoryItem[]> {
     if (!supabase) return localStore.get('haccp_inventory');
-    const { data, error } = await supabase.from('haccp_inventory').select('*');
-    return error ? localStore.get('haccp_inventory') : data;
+    try {
+      const { data, error } = await supabase.from('haccp_inventory').select('*');
+      if (error) throw error;
+      return data;
+    } catch (e: any) {
+      return localStore.get('haccp_inventory');
+    }
   },
 
   async updateInventoryItem(item: InventoryItem) {
@@ -98,8 +124,13 @@ export const db = {
 
   async getMovements(): Promise<StockMovement[]> {
     if (!supabase) return localStore.get('haccp_movements');
-    const { data, error } = await supabase.from('haccp_movements').select('*').order('date', { ascending: false }).limit(30);
-    return error ? localStore.get('haccp_movements') : data;
+    try {
+      const { data, error } = await supabase.from('haccp_movements').select('*').order('date', { ascending: false }).limit(30);
+      if (error) throw error;
+      return data;
+    } catch (e: any) {
+      return localStore.get('haccp_movements');
+    }
   },
 
   async addMovement(mov: StockMovement) {
