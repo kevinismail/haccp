@@ -15,7 +15,10 @@ export const db = {
 
   // --- JOURNAL QUOTIDIEN ---
   async getDailyLogs(): Promise<DailyLog[]> {
-    if (!supabase) return localStore.get('haccp_logs');
+    if (!supabase) {
+      console.warn("Database: Supabase non initialisé, chargement LocalStorage.");
+      return localStore.get('haccp_logs');
+    }
     
     try {
       const { data, error } = await supabase
@@ -26,12 +29,13 @@ export const db = {
       if (error) throw error;
       return data.map(row => ({ ...row.data, id: row.id, date: row.date }));
     } catch (error: any) {
-      console.warn("Mode local activé (Erreur Cloud Logs):", error.message);
+      console.error("Erreur critique Cloud (Logs):", error.message);
       return localStore.get('haccp_logs');
     }
   },
 
   async upsertDailyLog(log: DailyLog) {
+    // Sauvegarde locale d'abord
     const logs = await this.getDailyLogs();
     const index = logs.findIndex(l => l.date === log.date);
     if (index > -1) logs[index] = log;
@@ -39,15 +43,24 @@ export const db = {
     localStore.set('haccp_logs', logs);
 
     if (!supabase) return;
+
     try {
       const { error } = await supabase.from('haccp_logs').upsert({ 
         id: log.id, 
         date: log.date, 
         data: log 
-      });
-      if (error) throw error;
+      }, { onConflict: 'date' }); // On force le conflit sur la date
+      
+      if (error) {
+        // Si l'erreur est "relation does not exist", c'est que le script SQL n'a pas tourné
+        if (error.code === '42P01') {
+          console.error("🚨 La table haccp_logs n'existe pas dans Supabase. Lancez le script SQL !");
+        } else {
+          throw error;
+        }
+      }
     } catch (e: any) {
-      console.error("Échec synchro Cloud Upsert:", e.message);
+      console.error("Échec synchro Cloud:", e.message);
     }
   },
 
@@ -68,7 +81,10 @@ export const db = {
     localStore.set('haccp_traceability', [record, ...records]);
 
     if (!supabase) return;
-    await supabase.from('haccp_traceability').insert(record);
+    const { error } = await supabase.from('haccp_traceability').insert(record);
+    if (error && error.code === '42P01') {
+       console.error("🚨 La table haccp_traceability n'existe pas.");
+    }
   },
 
   async deleteTraceabilityRecord(id: string) {
@@ -88,15 +104,22 @@ export const db = {
       });
     }
     
-    const fileName = `trace-${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
-    const { data, error } = await supabase.storage.from('traceability-photos').upload(fileName, file);
-    
-    if (error) {
-      console.error("Erreur Upload Storage:", error.message);
-      return null;
+    try {
+      const fileName = `trace-${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
+      const { data, error } = await supabase.storage.from('traceability-photos').upload(fileName, file);
+      
+      if (error) throw error;
+      const { data: urlData } = supabase.storage.from('traceability-photos').getPublicUrl(data.path);
+      return urlData.publicUrl;
+    } catch (e: any) {
+      console.error("Erreur Storage:", e.message);
+      // Fallback base64 si le storage est mal configuré
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
+      });
     }
-    const { data: urlData } = supabase.storage.from('traceability-photos').getPublicUrl(data.path);
-    return urlData.publicUrl;
   },
 
   // --- INVENTAIRE ---

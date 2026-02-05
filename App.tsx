@@ -14,7 +14,7 @@ import { db } from './services/databaseService';
 import { 
   LayoutDashboard, ClipboardList, Sparkles, History, Menu, X, 
   FileDown, BookOpen, PackageSearch, ShieldCheck, Boxes, 
-  CloudCheck, RefreshCw, CloudOff, Calendar, LogOut
+  CloudCheck, RefreshCw, CloudOff, Calendar, LogOut, AlertTriangle
 } from 'lucide-react';
 import { exportHistoryToPDF } from './services/exportService';
 
@@ -236,14 +236,17 @@ const App: React.FC = () => {
             <span className="text-xs font-bold uppercase tracking-wider">Déconnexion</span>
             <LogOut size={16} />
           </button>
-          <div className={`rounded-xl p-3 flex items-center justify-between ${db.isCloudEnabled() ? 'bg-indigo-50 text-indigo-900' : 'bg-amber-50 text-amber-900'}`}>
+          <div className={`rounded-xl p-3 flex items-center justify-between ${db.isCloudEnabled() ? 'bg-indigo-50 text-indigo-900' : 'bg-red-50 text-red-900'}`}>
             <p className="text-xs font-semibold truncate">{RESTAURANT_NAME}</p>
             {isSyncing ? (
               <RefreshCw size={14} className="animate-spin" />
             ) : db.isCloudEnabled() ? (
               <CloudCheck size={14} className="text-emerald-500" />
             ) : (
-              <CloudOff size={14} className="text-amber-500" title="Mode Local" />
+              <div className="flex items-center gap-1 text-red-500" title="Mode Local uniquement">
+                <CloudOff size={14} />
+                <AlertTriangle size={10} />
+              </div>
             )}
           </div>
         </div>
