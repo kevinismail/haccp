@@ -14,7 +14,7 @@ import { db } from './services/databaseService';
 import { 
   LayoutDashboard, ClipboardList, Sparkles, History, Menu, X, 
   FileDown, BookOpen, PackageSearch, ShieldCheck, Boxes, 
-  LogOut, CloudCheck, CloudOff, RefreshCw 
+  LogOut, CloudCheck, RefreshCw, AlertTriangle, Key
 } from 'lucide-react';
 import { exportHistoryToPDF } from './services/exportService';
 
@@ -27,8 +27,16 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [hasConfigError, setHasConfigError] = useState(false);
 
   useEffect(() => {
+    // Vérification de la configuration Supabase
+    if (!db.isReady()) {
+      setHasConfigError(true);
+      setIsLoading(false);
+      return;
+    }
+
     const authStatus = localStorage.getItem(AUTH_KEY);
     if (authStatus === 'true') {
       setIsAuthenticated(true);
@@ -87,7 +95,6 @@ const App: React.FC = () => {
     const newLogs = logs.map(log => log.date === today ? updatedLog : log);
     setLogs(newLogs);
     
-    // Sync to cloud
     await db.upsertDailyLog(updatedLog);
     setIsSyncing(false);
   };
@@ -102,12 +109,49 @@ const App: React.FC = () => {
     };
   };
 
+  // Écran d'erreur de configuration
+  if (hasConfigError) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-white rounded-3xl shadow-xl p-8 text-center space-y-6 border border-amber-100">
+          <div className="w-20 h-20 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto">
+            <AlertTriangle size={40} />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold text-gray-900">Configuration Requise</h2>
+            <p className="text-gray-500 text-sm">
+              L'application ne peut pas se connecter à votre base de données Supabase. 
+            </p>
+          </div>
+          <div className="bg-gray-50 p-4 rounded-xl text-left space-y-3">
+            <p className="text-xs font-bold text-gray-400 uppercase">Action requise :</p>
+            <div className="flex items-start gap-3 text-sm text-gray-700">
+              <div className="w-5 h-5 bg-indigo-100 text-indigo-600 rounded flex items-center justify-center text-[10px] font-bold mt-0.5 shrink-0">1</div>
+              <p>Allez dans les <b>Paramètres (Secrets)</b> de votre éditeur ou de Vercel.</p>
+            </div>
+            <div className="flex items-start gap-3 text-sm text-gray-700">
+              <div className="w-5 h-5 bg-indigo-100 text-indigo-600 rounded flex items-center justify-center text-[10px] font-bold mt-0.5 shrink-0">2</div>
+              <p>Ajoutez <b>SUPABASE_URL</b> et <b>SUPABASE_ANON_KEY</b>.</p>
+            </div>
+          </div>
+          <button 
+            onClick={() => window.location.reload()}
+            className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-indigo-100 flex items-center justify-center gap-2"
+          >
+            <RefreshCw size={18} />
+            Actualiser l'application
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center p-8 text-center space-y-4">
         <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
         <h2 className="text-xl font-bold text-gray-900">Synchronisation HACCP...</h2>
-        <p className="text-gray-500">Récupération sécurisée de vos données depuis le cloud.</p>
+        <p className="text-gray-500">Récupération sécurisée de vos données.</p>
       </div>
     );
   }
@@ -170,21 +214,13 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#f9fafb] flex flex-col md:flex-row">
-      {/* Sync Status Header (Mobile) */}
-      <div className="md:hidden bg-indigo-900 text-white px-4 py-1 text-[10px] flex justify-between items-center">
-        <span>MODE CLOUD ACTIVÉ</span>
-        <div className="flex items-center gap-1">
-          {isSyncing ? <RefreshCw size={10} className="animate-spin" /> : <CloudCheck size={10} />}
-          {isSyncing ? 'Synchronisation...' : 'À jour'}
-        </div>
-      </div>
-
+      {/* Header Mobile */}
       <header className="md:hidden bg-white border-b border-gray-200 p-4 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
             <ShieldCheckIcon size={20} />
           </div>
-          <h1 className="font-bold text-gray-900">HACCP Pro</h1>
+          <h1 className="font-bold text-gray-900">Hygiène La Oncé</h1>
         </div>
         <button onClick={() => setSidebarOpen(!isSidebarOpen)} className="p-2 text-gray-600">
           {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
@@ -199,7 +235,7 @@ const App: React.FC = () => {
           <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-100">
             <ShieldCheckIcon size={24} />
           </div>
-          <h1 className="text-xl font-bold text-gray-900">HACCP Pro</h1>
+          <h1 className="text-xl font-bold text-gray-900">La Oncé</h1>
         </div>
 
         <nav className="flex-1 px-4 space-y-1 mt-4 md:mt-0 pt-16 md:pt-0 overflow-y-auto pb-8">
@@ -215,10 +251,7 @@ const App: React.FC = () => {
 
         <div className="p-4 border-t border-gray-100 space-y-2">
           <div className="bg-indigo-50 rounded-xl p-3 flex items-center justify-between">
-            <div>
-              <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-0.5">Etablissement</p>
-              <p className="text-xs font-semibold text-indigo-900 truncate">{RESTAURANT_NAME}</p>
-            </div>
+            <p className="text-xs font-semibold text-indigo-900 truncate">{RESTAURANT_NAME}</p>
             {isSyncing ? <RefreshCw size={14} className="text-indigo-400 animate-spin" /> : <CloudCheck size={14} className="text-emerald-500" />}
           </div>
           <button onClick={handleLogout} className="w-full flex items-center space-x-3 px-4 py-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors text-sm font-medium">

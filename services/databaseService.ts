@@ -3,8 +3,14 @@ import { supabase } from './supabaseClient';
 import { DailyLog, TraceabilityRecord, InventoryItem, StockMovement } from '../types';
 
 export const db = {
+  // Aide interne pour vérifier si supabase est prêt
+  isReady() {
+    return !!supabase;
+  },
+
   // --- JOURNAL QUOTIDIEN ---
   async getDailyLogs(): Promise<DailyLog[]> {
+    if (!supabase) return [];
     const { data, error } = await supabase
       .from('haccp_logs')
       .select('*')
@@ -19,6 +25,7 @@ export const db = {
   },
 
   async upsertDailyLog(log: DailyLog) {
+    if (!supabase) return;
     const { error } = await supabase
       .from('haccp_logs')
       .upsert({ 
@@ -31,6 +38,7 @@ export const db = {
 
   // --- TRAÇABILITÉ & PHOTOS ---
   async getTraceability(): Promise<TraceabilityRecord[]> {
+    if (!supabase) return [];
     const { data, error } = await supabase
       .from('haccp_traceability')
       .select('*')
@@ -41,6 +49,7 @@ export const db = {
   },
 
   async addTraceabilityRecord(record: TraceabilityRecord) {
+    if (!supabase) return;
     const { error } = await supabase
       .from('haccp_traceability')
       .insert(record);
@@ -48,6 +57,7 @@ export const db = {
   },
 
   async deleteTraceabilityRecord(id: string) {
+    if (!supabase) return;
     const { error } = await supabase
       .from('haccp_traceability')
       .delete()
@@ -56,6 +66,7 @@ export const db = {
   },
 
   async uploadPhoto(file: File): Promise<string | null> {
+    if (!supabase) return null;
     const fileName = `trace-${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
     const { data, error } = await supabase.storage
       .from('traceability-photos')
@@ -75,6 +86,7 @@ export const db = {
 
   // --- INVENTAIRE ---
   async getInventory(): Promise<InventoryItem[]> {
+    if (!supabase) return [];
     const { data, error } = await supabase
       .from('haccp_inventory')
       .select('*');
@@ -83,6 +95,7 @@ export const db = {
   },
 
   async updateInventoryItem(item: InventoryItem) {
+    if (!supabase) return;
     const { error } = await supabase
       .from('haccp_inventory')
       .upsert(item);
@@ -90,6 +103,7 @@ export const db = {
   },
 
   async getMovements(): Promise<StockMovement[]> {
+    if (!supabase) return [];
     const { data, error } = await supabase
       .from('haccp_movements')
       .select('*')
@@ -100,6 +114,7 @@ export const db = {
   },
 
   async addMovement(mov: StockMovement) {
+    if (!supabase) return;
     const { error } = await supabase
       .from('haccp_movements')
       .insert(mov);
