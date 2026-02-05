@@ -14,7 +14,7 @@ import { db } from './services/databaseService';
 import { 
   LayoutDashboard, ClipboardList, Sparkles, History, Menu, X, 
   FileDown, BookOpen, PackageSearch, ShieldCheck, Boxes, 
-  CloudCheck, RefreshCw, CloudOff, Calendar, LogOut, AlertTriangle
+  CloudCheck, RefreshCw, CloudOff, Calendar, LogOut, AlertTriangle, Info
 } from 'lucide-react';
 import { exportHistoryToPDF } from './services/exportService';
 
@@ -26,6 +26,7 @@ const App: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [showCloudDebug, setShowCloudDebug] = useState(false);
 
   useEffect(() => {
     const auth = localStorage.getItem('haccp_auth');
@@ -236,16 +237,29 @@ const App: React.FC = () => {
             <span className="text-xs font-bold uppercase tracking-wider">Déconnexion</span>
             <LogOut size={16} />
           </button>
-          <div className={`rounded-xl p-3 flex items-center justify-between ${db.isCloudEnabled() ? 'bg-indigo-50 text-indigo-900' : 'bg-red-50 text-red-900'}`}>
-            <p className="text-xs font-semibold truncate">{RESTAURANT_NAME}</p>
-            {isSyncing ? (
-              <RefreshCw size={14} className="animate-spin" />
-            ) : db.isCloudEnabled() ? (
-              <CloudCheck size={14} className="text-emerald-500" />
-            ) : (
-              <div className="flex items-center gap-1 text-red-500" title="Mode Local uniquement">
-                <CloudOff size={14} />
-                <AlertTriangle size={10} />
+          
+          <div className="relative">
+            <button 
+              onClick={() => setShowCloudDebug(!showCloudDebug)}
+              className={`w-full rounded-xl p-3 flex items-center justify-between transition-all ${db.isCloudEnabled() ? 'bg-indigo-50 text-indigo-900' : 'bg-red-50 text-red-900'}`}
+            >
+              <div className="flex items-center gap-2 overflow-hidden">
+                <p className="text-[10px] font-bold truncate">{RESTAURANT_NAME}</p>
+                {db.isCloudEnabled() ? <CloudCheck size={12} className="text-emerald-500" /> : <CloudOff size={12} className="text-red-500" />}
+              </div>
+              <Info size={12} className="opacity-50" />
+            </button>
+            
+            {showCloudDebug && (
+              <div className="absolute bottom-full left-0 right-0 mb-2 p-3 bg-white border border-gray-200 rounded-xl shadow-xl text-[10px] space-y-1 animate-slideUp z-50">
+                <p className="font-bold border-b pb-1 mb-1">Status Synchronisation</p>
+                <p className="flex justify-between"><span>Base de données:</span> <span className={db.isCloudEnabled() ? 'text-green-600 font-bold' : 'text-red-600 font-bold'}>{db.isCloudEnabled() ? 'Connectée' : 'Hors-ligne'}</span></p>
+                {!db.isCloudEnabled() && (
+                  <p className="text-red-500 italic mt-1 leading-tight">Les clés Supabase ne sont pas détectées dans les variables d'environnement.</p>
+                )}
+                {db.isCloudEnabled() && (
+                   <p className="text-green-600 italic mt-1 leading-tight">Prêt pour la synchronisation Mac/iPhone.</p>
+                )}
               </div>
             )}
           </div>
