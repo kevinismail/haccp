@@ -13,12 +13,13 @@ import { db } from './services/databaseService';
 import { 
   LayoutDashboard, ClipboardList, Sparkles, History, Menu, X, 
   FileDown, BookOpen, PackageSearch, ShieldCheck, Boxes, 
-  LogOut, CloudCheck, RefreshCw, AlertTriangle, CloudOff
+  CloudCheck, RefreshCw, CloudOff, Calendar
 } from 'lucide-react';
 import { exportHistoryToPDF } from './services/exportService';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeDate, setActiveDate] = useState(new Date().toISOString().split('T')[0]);
   const [logs, setLogs] = useState<DailyLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -32,25 +33,8 @@ const App: React.FC = () => {
     setIsLoading(true);
     try {
       const fetchedLogs = await db.getDailyLogs();
-      const today = new Date().toISOString().split('T')[0];
-      
-      let currentLogs = fetchedLogs;
-      let todayLog = currentLogs.find(l => l.date === today);
-
-      if (!todayLog) {
-        todayLog = {
-          id: crypto.randomUUID(),
-          date: today,
-          isLocked: false,
-          items: DEFAULT_CHECKLIST.map(item => ({
-            ...item,
-            completed: false
-          }))
-        };
-        await db.upsertDailyLog(todayLog);
-        currentLogs = [todayLog, ...currentLogs];
-      }
-      setLogs(currentLogs);
+      setLogs(fetchedLogs);
+      ensureLogExists(activeDate, fetchedLogs);
     } catch (e) {
       console.error("Failed to load initial data", e);
     } finally {
@@ -58,10 +42,27 @@ const App: React.FC = () => {
     }
   };
 
-  const updateTodayLog = async (id: string, updates: Partial<CheckItem>) => {
+  const ensureLogExists = async (date: string, currentLogs: DailyLog[]) => {
+    let log = currentLogs.find(l => l.date === date);
+    if (!log) {
+      log = {
+        id: crypto.randomUUID(),
+        date: date,
+        isLocked: false,
+        items: DEFAULT_CHECKLIST.map(item => ({
+          ...item,
+          completed: false
+        }))
+      };
+      await db.upsertDailyLog(log);
+      setLogs(prev => [log!, ...prev]);
+    }
+    return log;
+  };
+
+  const updateLog = async (date: string, id: string, updates: Partial<CheckItem>) => {
     setIsSyncing(true);
-    const today = new Date().toISOString().split('T')[0];
-    const targetLog = logs.find(l => l.date === today);
+    const targetLog = logs.find(l => l.date === date);
     if (!targetLog) return;
 
     const updatedLog = {
@@ -69,29 +70,32 @@ const App: React.FC = () => {
       items: targetLog.items.map(item => item.id === id ? { ...item, ...updates } : item)
     };
 
-    const newLogs = logs.map(log => log.date === today ? updatedLog : log);
-    setLogs(newLogs);
-    
+    setLogs(prev => prev.map(log => log.date === date ? updatedLog : log));
     await db.upsertDailyLog(updatedLog);
     setIsSyncing(false);
   };
 
-  const getTodayLog = () => {
-    const today = new Date().toISOString().split('T')[0];
-    return logs.find(l => l.date === today) || {
+  const getActiveLog = () => {
+    return logs.find(l => l.date === activeDate) || {
       id: '',
-      date: today,
+      date: activeDate,
       isLocked: false,
       items: []
     };
   };
+
+  useEffect(() => {
+    if (!isLoading) {
+      ensureLogExists(activeDate, logs);
+    }
+  }, [activeDate]);
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center p-8 text-center space-y-4">
         <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
         <h2 className="text-xl font-bold text-gray-900">Synchronisation HACCP...</h2>
-        <p className="text-gray-500">Préparation de votre espace de travail.</p>
+        <p className="text-gray-500">Accès sécurisé à vos registres Cloud.</p>
       </div>
     );
   }
@@ -99,9 +103,16 @@ const App: React.FC = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard todayLog={getTodayLog()} onNavigate={(tab) => { setActiveTab(tab); setSidebarOpen(false); }} />;
+        return <Dashboard todayLog={getActiveLog()} onNavigate={(tab) => { setActiveTab(tab); setSidebarOpen(false); }} />;
       case 'checklist':
-        return <Checklist log={getTodayLog()} onUpdateItem={updateTodayLog} onSave={() => setActiveTab('dashboard')} />;
+        return (
+          <Checklist 
+            log={getActiveLog()} 
+            onUpdateItem={(id, updates) => updateLog(activeDate, id, updates)} 
+            onDateChange={setActiveDate}
+            onSave={() => setActiveTab('dashboard')} 
+          />
+        );
       case 'traceability':
         return <Traceability />;
       case 'inventory':
@@ -109,7 +120,7 @@ const App: React.FC = () => {
       case 'recipes':
         return <Recipes />;
       case 'assistant':
-        return <Assistant currentLog={getTodayLog()} />;
+        return <Assistant currentLog={getActiveLog()} />;
       case 'standards':
         return <Standards />;
       case 'history':
@@ -117,36 +128,45 @@ const App: React.FC = () => {
           <div className="space-y-6 animate-fadeIn">
             <header className="flex justify-between items-center">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">Historique</h2>
-                <p className="text-gray-500">Archives des contrôles sanitaires</p>
+                <h2 className="text-2xl font-bold text-gray-900">Historique complet</h2>
+                <p className="text-gray-500">Consultez et modifiez vos archives</p>
               </div>
               <button 
                 onClick={() => exportHistoryToPDF(logs)}
                 className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 shadow-md transition-all active:scale-95"
               >
                 <FileDown size={18} />
-                <span className="hidden sm:inline">Exporter Historique</span>
+                <span className="hidden sm:inline">Exporter Rapport Global</span>
               </button>
             </header>
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden divide-y divide-gray-100">
-              {logs.length > 0 ? logs.map(log => (
-                <div key={log.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                  <div>
-                    <p className="font-bold text-gray-800">{new Date(log.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                    <p className="text-sm text-gray-500">{log.items.filter(i => i.completed).length}/{log.items.length} contrôles effectués</p>
+              {logs.sort((a,b) => b.date.localeCompare(a.date)).map(log => (
+                <button 
+                  key={log.id} 
+                  onClick={() => { setActiveDate(log.date); setActiveTab('checklist'); }}
+                  className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors text-left"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`p-2 rounded-lg ${log.items.every(i => i.completed) ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'}`}>
+                      <Calendar size={20} />
+                    </div>
+                    <div>
+                      <p className="font-bold text-gray-800">{new Date(log.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                      <p className="text-sm text-gray-500">{log.items.filter(i => i.completed).length}/{log.items.length} points contrôlés</p>
+                    </div>
                   </div>
-                  <div className={`px-3 py-1 rounded-full text-xs font-bold ${log.items.every(i => i.completed) ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-amber-100 text-amber-700 border border-amber-200'}`}>
-                    {log.items.every(i => i.completed) ? 'COMPLET' : 'INCOMPLET'}
+                  <div className="flex items-center gap-3">
+                    <div className={`px-3 py-1 rounded-full text-[10px] font-bold border ${log.items.every(i => i.completed) ? 'bg-green-100 text-green-700 border-green-200' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>
+                      {log.items.every(i => i.completed) ? 'COMPLET' : 'À COMPLÉTER'}
+                    </div>
                   </div>
-                </div>
-              )) : (
-                <div className="p-8 text-center text-gray-400">Aucun historique disponible</div>
-              )}
+                </button>
+              ))}
             </div>
           </div>
         );
       default:
-        return <Dashboard todayLog={getTodayLog()} onNavigate={setActiveTab} />;
+        return <Dashboard todayLog={getActiveLog()} onNavigate={setActiveTab} />;
     }
   };
 
@@ -198,7 +218,7 @@ const App: React.FC = () => {
             )}
           </div>
           <p className="text-[10px] text-center text-gray-400 uppercase tracking-widest px-4">
-            v2.6 Stable
+            v2.8 Cloud Archive
           </p>
         </div>
       </aside>

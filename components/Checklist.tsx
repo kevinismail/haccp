@@ -2,15 +2,25 @@
 import React from 'react';
 import { DailyLog, CheckItem, HaccpCategory } from '../types';
 import { CATEGORY_LABELS } from '../constants';
-import { Check, Thermometer, ShieldCheck, Truck, Droplets, Sun, Moon, Coffee, Banknote } from 'lucide-react';
+import { Check, Thermometer, ShieldCheck, Truck, Droplets, Sun, Moon, Coffee, Banknote, Calendar, ChevronLeft, ChevronRight, FileDown } from 'lucide-react';
+import { exportDailyLogToPDF } from '../services/exportService';
 
 interface ChecklistProps {
   log: DailyLog;
   onUpdateItem: (id: string, updates: Partial<CheckItem>) => void;
+  onDateChange: (date: string) => void;
   onSave: () => void;
 }
 
-const Checklist: React.FC<ChecklistProps> = ({ log, onUpdateItem, onSave }) => {
+const Checklist: React.FC<ChecklistProps> = ({ log, onUpdateItem, onDateChange, onSave }) => {
+  const categories = Object.keys(CATEGORY_LABELS) as HaccpCategory[];
+
+  const changeDay = (offset: number) => {
+    const d = new Date(log.date);
+    d.setDate(d.getDate() + offset);
+    onDateChange(d.toISOString().split('T')[0]);
+  };
+
   const getIcon = (category: string, label: string) => {
     const l = label.toLowerCase();
     if (l.includes('café')) return <Coffee size={18} />;
@@ -37,22 +47,42 @@ const Checklist: React.FC<ChecklistProps> = ({ log, onUpdateItem, onSave }) => {
     }
   };
 
-  const categories = Object.keys(CATEGORY_LABELS) as HaccpCategory[];
-
   return (
     <div className="space-y-8 animate-fadeIn pb-24">
-      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center sticky top-0 bg-[#f9fafb]/90 backdrop-blur-md py-4 z-20 border-b border-gray-200 gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Registre Opérationnel</h2>
-          <p className="text-gray-500 font-medium">{new Date(log.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+      <header className="flex flex-col gap-4 sticky top-0 bg-[#f9fafb]/95 backdrop-blur-md py-4 z-20 border-b border-gray-200">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Registre Opérationnel</h2>
+            <div className="flex items-center gap-3 mt-1">
+              <button onClick={() => changeDay(-1)} className="p-1 hover:bg-gray-200 rounded-md text-gray-500 transition-colors"><ChevronLeft size={20}/></button>
+              <div className="relative">
+                <input 
+                  type="date" 
+                  value={log.date}
+                  onChange={(e) => onDateChange(e.target.value)}
+                  className="bg-transparent font-bold text-indigo-600 outline-none cursor-pointer hover:bg-indigo-50 px-2 py-0.5 rounded transition-all"
+                />
+              </div>
+              <button onClick={() => changeDay(1)} className="p-1 hover:bg-gray-200 rounded-md text-gray-500 transition-colors"><ChevronRight size={20}/></button>
+            </div>
+          </div>
+          <div className="flex gap-2 w-full sm:w-auto">
+             <button 
+              onClick={() => exportDailyLogToPDF(log)}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-white border border-gray-200 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 shadow-sm transition-all"
+            >
+              <FileDown size={18} />
+              <span>Export PDF</span>
+            </button>
+            <button 
+              onClick={onSave}
+              className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-indigo-100 transition-all active:scale-95 flex items-center justify-center gap-2"
+            >
+              <Check size={20} />
+              Terminer
+            </button>
+          </div>
         </div>
-        <button 
-          onClick={onSave}
-          className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-2.5 rounded-xl font-bold shadow-lg shadow-indigo-100 transition-all active:scale-95 flex items-center justify-center gap-2"
-        >
-          <Check size={20} />
-          Valider les saisies
-        </button>
       </header>
 
       {categories.map(cat => {
