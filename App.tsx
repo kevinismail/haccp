@@ -9,11 +9,12 @@ import Recipes from './components/Recipes';
 import Traceability from './components/Traceability';
 import Standards from './components/Standards';
 import Inventory from './components/Inventory';
+import Login from './components/Login';
 import { db } from './services/databaseService';
 import { 
   LayoutDashboard, ClipboardList, Sparkles, History, Menu, X, 
   FileDown, BookOpen, PackageSearch, ShieldCheck, Boxes, 
-  CloudCheck, RefreshCw, CloudOff, Calendar
+  CloudCheck, RefreshCw, CloudOff, Calendar, LogOut
 } from 'lucide-react';
 import { exportHistoryToPDF } from './services/exportService';
 
@@ -24,9 +25,16 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    loadInitialData();
+    const auth = localStorage.getItem('haccp_auth');
+    if (auth === 'true') {
+      setIsAuthenticated(true);
+      loadInitialData();
+    } else {
+      setIsLoading(false);
+    }
   }, []);
 
   const loadInitialData = async () => {
@@ -40,6 +48,11 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('haccp_auth');
+    setIsAuthenticated(false);
   };
 
   const ensureLogExists = async (date: string, currentLogs: DailyLog[]) => {
@@ -85,10 +98,19 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    if (!isLoading) {
+    if (!isLoading && isAuthenticated) {
       ensureLogExists(activeDate, logs);
     }
-  }, [activeDate]);
+  }, [activeDate, isAuthenticated]);
+
+  if (!isAuthenticated) {
+    return <Login onLogin={(success) => {
+      if (success) {
+        setIsAuthenticated(true);
+        loadInitialData();
+      }
+    }} />;
+  }
 
   if (isLoading) {
     return (
@@ -207,6 +229,13 @@ const App: React.FC = () => {
         </nav>
 
         <div className="p-4 border-t border-gray-100 space-y-2">
+          <button 
+            onClick={handleLogout}
+            className="w-full flex items-center justify-between p-3 rounded-xl bg-gray-50 text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors group"
+          >
+            <span className="text-xs font-bold uppercase tracking-wider">Déconnexion</span>
+            <LogOut size={16} />
+          </button>
           <div className={`rounded-xl p-3 flex items-center justify-between ${db.isCloudEnabled() ? 'bg-indigo-50 text-indigo-900' : 'bg-amber-50 text-amber-900'}`}>
             <p className="text-xs font-semibold truncate">{RESTAURANT_NAME}</p>
             {isSyncing ? (
@@ -217,9 +246,6 @@ const App: React.FC = () => {
               <CloudOff size={14} className="text-amber-500" title="Mode Local" />
             )}
           </div>
-          <p className="text-[10px] text-center text-gray-400 uppercase tracking-widest px-4">
-            v2.8 Cloud Archive
-          </p>
         </div>
       </aside>
 

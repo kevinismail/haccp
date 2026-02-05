@@ -18,10 +18,9 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setLoading(true);
     setError(false);
 
-    // Identifiants demandés : Laonce / kevin
-    // On simule un petit délai pour le côté "pro"
+    // Identifiants demandés : kevin / ismail
     setTimeout(() => {
-      if (username.toLowerCase() === 'laonce' && password === 'kevin') {
+      if (username.toLowerCase() === 'kevin' && password === 'ismail') {
         localStorage.setItem('haccp_auth', 'true');
         onLogin(true);
       } else {
